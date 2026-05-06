@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Roomer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ["Inter", "sans-serif"] },
+            colors: {
+              primary: {
+                50: "#f0f9ff",
+                100: "#e0f2fe",
+                500: "#3b82f6",
+                600: "#2563eb",
+              },
+              success: { 50: "#f0fdf4", 500: "#22c55e", 600: "#16a34a" },
+              warning: { 50: "#fef3c7", 500: "#f59e0b", 600: "#d97706" },
+            },
+            animation: {
+              "slide-up": "slideUp 0.3s ease-out",
+              "scale-in": "scaleIn 0.2s ease-out",
+            },
+            keyframes: {
+              slideUp: {
+                "0%": { transform: "translateY(10px)", opacity: "0" },
+                "100%": { transform: "translateY(0)", opacity: "1" },
+              },
+              scaleIn: {
+                "0%": { transform: "scale(0.95)", opacity: "0" },
+                "100%": { transform: "scale(1)", opacity: "1" },
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      :root {
+        --primary: #4cd080;
+        --primary-dark: #2fb56b;
+        --primary-light: #e8f7ef;
+      }
+
+      * {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+      body::-webkit-scrollbar {
+        display: none;
+      }
+      .glass-effect {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+      }
+      .card-hover {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .card-hover:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      }
+      .primary-gradient {
+        background: linear-gradient(
+          135deg,
+          var(--primary) 0%,
+          var(--primary-dark) 100%
+        );
+      }
+      .text-primary {
+        color: var(--primary);
+      }
+      .bg-primary-soft {
+        background: var(--primary-light);
+      }
+      .btn-primary {
+        background: linear-gradient(
+          135deg,
+          var(--primary) 0%,
+          var(--primary-dark) 100%
+        );
+        transition: all 0.3s ease;
+      }
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(76, 208, 128, 0.3);
+      }
+      .btn-secondary {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      }
+      .gradient-bg {
+        background: linear-gradient(
+          135deg,
+          var(--primary) 0%,
+          var(--primary-dark) 100%
+        );
+      }
+      .status-paid {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .status-owe {
+        background: #ffedd5;
+        color: #9a3412;
+      }
+      .status-neutral {
+        background: #f1f5f9;
+        color: #475569;
+      }
+      .nav-item.active {
+        color: var(--primary);
+      }
+      .nav-item.active i {
+        color: var(--primary);
+      }
+      .nav-item.active span {
+        color: var(--primary);
+      }
+      #exp-split-group input:checked + div {
+        border-color: var(--primary);
+        background: var(--primary-light);
+        color: var(--primary-dark);
+      }
+      @media (max-width: 423px) {
+        .roomer-input-row, .settings-input-row {
+          flex-direction: column;
+          width: 100%;
+        }
+        .roomer-input-row input, .settings-input-row input {
+          width: 100%;
+        }
+        .roomer-input-row button, .settings-input-row button {
+          width: 100%;
+          margin-top: 8px;
+        }
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 text-gray-900 min-h-screen font-sans pb-24">
+    <div
+      id="toast"
+      class="fixed top-5 left-1/2 transform -translate-x-1/2 glass-effect px-6 py-3 rounded-full shadow-xl z-50 transition-all duration-300 opacity-0 -translate-y-4 pointer-events-none flex items-center gap-3 w-max max-w-[90%] border border-gray-200"
+    >
+      <i class="fas fa-check-circle text-success-500 text-xl"></i>
+      <span id="toastMsg" class="font-medium text-sm text-gray-800"
+        >Success
+      </span>
+    </div>
+
+    <div
+      id="detailsModal"
+      class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40 flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white w-full max-w-sm rounded-3xl shadow-2xl animate-scale-in overflow-hidden"
+      >
+        <div class="gradient-bg p-6 text-white">
+          <div class="flex justify-between items-center">
+            <div>
+              <h3 id="detail-name" class="text-2xl font-bold">Name</h3>
+              <p class="text-sm opacity-90">Personal Summary</p>
+            </div>
+            <button
+              onclick="closeDetails()"
+              class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition"
+            >
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+        <div class="p-6 space-y-4">
+          <div
+            class="flex items-center justify-between p-4 bg-green-50 rounded-2xl border border-green-100"
+          >
+            <div class="flex items-center gap-3">
+              <div
+                class="w-12 h-12 rounded-full bg-white shadow-md flex items-center justify-center text-success-600"
+              >
+                <i class="fas fa-wallet text-xl"></i>
+              </div>
+              <div>
+                <p class="text-sm font-medium text-gray-600">Total Paid</p>
+                <p id="detail-paid" class="text-2xl font-bold text-gray-900">
+                  0.00
+                </p>
+              </div>
+            </div>
+          </div>
+          <div
+            class="flex items-center justify-between p-4 bg-orange-50 rounded-2xl border border-orange-100"
+          >
+            <div class="flex items-center gap-3">
+              <div
+                class="w-12 h-12 rounded-full bg-white shadow-md flex items-center justify-center text-warning-600"
+              >
+                <i class="fas fa-shopping-cart text-xl"></i>
+              </div>
+              <div>
+                <p class="text-sm font-medium text-gray-600">Total Consumed</p>
+                <p id="detail-spent" class="text-2xl font-bold text-gray-900">
+                  0.00
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="transactionModal"
+      class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40 flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white w-full max-w-sm rounded-3xl shadow-2xl animate-scale-in overflow-hidden"
+      >
+        <div class="gradient-bg p-6 text-white">
+          <div class="flex justify-between items-center">
+            <div>
+              <h3 id="trans-detail-desc" class="text-2xl font-bold">Details</h3>
+              <p id="trans-detail-date" class="text-sm opacity-90">Date</p>
+            </div>
+            <button
+              onclick="closeTransactionModal()"
+              class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition"
+            >
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+        <div id="trans-detail-content" class="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+          </div>
+      </div>
+    </div>
+
+    <div
+      id="setup-screen"
+      class="hidden fixed inset-0 z-40 flex flex-col justify-center p-6"
+      style="
+        background: linear-gradient(
+          135deg,
+          #f0fdf4 0%,
+          #e8f7ef 50%,
+          #d7f3e5 100%
+        );
+      "
+    >
+      <div class="w-full md:max-w-md mx-auto">
+        <div class="text-center mb-10">
+          <div
+                  class="w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-emerald-500/30 overflow-hidden"
+          >
+            <img src="Roomer.png" alt="Roomer" class="w-full h-full object-cover" />
+            </div>
+          <h1
+            class="text-4xl font-bold mb-2 bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] bg-clip-text text-transparent"
+          >
+            Roomer
+          </h1>
+          <p class="text-gray-600 font-medium">Split expenses smartly.</p>
+        </div>
+        <div
+          class="glass-effect p-8 rounded-3xl shadow-lg border border-gray-200"
+        >
+          <h2 class="text-xl font-bold text-gray-800 mb-6">Add Roommates</h2>
+          <div class="flex gap-3 mb-6 roomer-input-row">
+            <input
+              type="text"
+              id="new-member-name"
+              placeholder="Enter name..."
+              class="flex-1 bg-white/80 border border-gray-300 rounded-2xl px-5 py-3 focus:outline-none focus:ring-2 focus:ring-[#4CD080]"
+            />
+            <button
+              onclick="addMemberToList('setup')"
+              class="btn-primary text-white font-bold rounded-2xl px-6 py-3"
+            >
+              <i class="fas fa-plus"></i>
+            </button>
+          </div>
+          <div
+            id="setup-members-list"
+            class="flex flex-wrap gap-3 mb-8 min-h-[60px]"
+          ></div>
+          <button
+            onclick="finishSetup()"
+            class="w-full btn-primary text-white font-bold py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all"
+          >
+            Start Roomer
+          </button>
+        </div>
+      </div>
+    </div>
+    <div id="main-app" class="w-full md:max-w-md mx-auto hidden">
+      <div id="page-dashboard" class="animate-slide-up">
+        <div class="gradient-bg text-white rounded-b-3xl shadow-xl pb-6 mb-6">
+          <div class="flex justify-between items-center p-6">
+            <div class="flex items-center gap-3">
+              <div
+                class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center"
+              >
+                <img src="Roomer_icon.png" alt="Roomer" class="object-contain"/>
+              </div>
+              <h1 class="text-xl font-bold">Roomer</h1>
+            </div>
+            <div
+              id="currentDate"
+              class="text-sm bg-white/20 px-3 py-1.5 rounded-full font-medium"
+            ></div>
+          </div>
+          <div class="px-6 text-center">
+            <p class="text-sm opacity-90 mb-2">Total Group Spending</p>
+            <div class="flex items-center justify-center gap-2 mb-4">
+              <span class="text-2xl">LKR</span>
+              <h2 id="total-expenses" class="text-5xl font-bold">0.00</h2>
+            </div>
+            <div class="flex justify-between gap-4 mt-6">
+              <div class="text-center">
+                <p class="text-xs">Members</p>
+                <p id="member-count" class="font-bold text-lg">0</p>
+              </div>
+              <div class="text-center">
+                <p class="text-xs">Transactions</p>
+                <p id="transaction-count" class="font-bold text-lg">0</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="px-4">
+          <div class="mb-8">
+            <div class="flex items-center justify-between mb-5">
+              <h2 class="text-xl font-bold text-gray-800">Overall Status</h2>
+              <span
+                class="text-sm px-3 py-1 rounded-full font-medium"
+                id="balance-summary"
+                >Balanced
+              </span>
+            </div>
+            <div id="members-balance-list" class="space-y-4"></div>
+          </div>
+          <div class="mb-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-5">Who Owes Who?</h2>
+            <div id="settlement-suggestions" class="space-y-4 pb-4"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-4 mb-8">
+            <button
+              onclick="showPage('add', document.querySelector('[onclick*=\'add\']'))"
+              class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm card-hover"
+            >
+              <div
+                class="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 mb-3"
+              >
+                <i class="fas fa-plus text-xl"></i>
+              </div>
+              <p class="font-semibold text-gray-800">Add Expense</p>
+            </button>
+            <button
+              onclick="showPage('history', document.querySelector('[onclick*=\'history\']'))"
+              class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm card-hover"
+            >
+              <div
+                class="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 mb-3"
+              >
+                <i class="fas fa-history text-xl"></i>
+              </div>
+              <p class="font-semibold text-gray-800">History</p>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="page-add" class="hidden animate-slide-up px-4">
+        <div class="flex items-center gap-3 mb-8 mt-6">
+          <button
+            onclick="showPage('dashboard', document.querySelector('[onclick*=\'dashboard\']'))"
+            class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600"
+          >
+            <i class="fas fa-arrow-left"></i>
+          </button>
+          <h2 class="text-2xl font-bold text-gray-900">New Transaction</h2>
+        </div>
+        <div class="flex p-1 bg-gray-100 rounded-2xl mb-8">
+          <button
+            onclick="toggleAddMode('expense')"
+            id="btn-mode-expense"
+            class="flex-1 py-4 rounded-xl font-bold text-sm transition-all primary-gradient text-white shadow-md"
+          >
+            Expense
+          </button>
+          <button
+            onclick="toggleAddMode('settlement')"
+            id="btn-mode-settlement"
+            class="flex-1 py-4 rounded-xl font-bold text-sm text-gray-600 transition-all hover:bg-gray-50"
+          >
+            Settle Up
+          </button>
+        </div>
+        <div
+          id="form-expense"
+          class="bg-white p-6 rounded-3xl shadow-lg border border-gray-200"
+        >
+          <div class="space-y-6">
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2"
+                >Description
+              </label>
+              <input
+                type="text"
+                id="exp-desc"
+                placeholder="Groceries..."
+                class="w-full p-4 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2 focus:ring-[#4CD080]"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2"
+                >Amount (LKR)
+              </label>
+              <input
+                type="number"
+                id="exp-amount"
+                placeholder="0.00"
+                class="w-full p-4 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2 focus:ring-[#4CD080] text-2xl"
+                onwheel="this.blur()"
+                inputmode="decimal"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2"
+                >Who Paid?
+              </label>
+              <div class="relative">
+                <select
+                  id="exp-payer"
+                  class="w-full p-4 bg-gray-50 rounded-2xl border-none outline-none appearance-none focus:ring-2 focus:ring-[#4CD080]"
+                ></select>
+                <i
+                  class="fas fa-chevron-down absolute right-4 top-4 text-gray-400"
+                ></i>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-3"
+                >Split Between
+              </label>
+              <div id="exp-split-group" class="grid grid-cols-2 gap-3"></div>
+            </div>
+            <button
+              onclick="saveExpense()"
+              class="w-full btn-primary text-white font-bold py-4 rounded-2xl mt-4"
+            >
+              Add Expense
+            </button>
+          </div>
+        </div>
+        <div
+          id="form-settlement"
+          class="hidden bg-white p-6 rounded-3xl shadow-lg border border-gray-200"
+        >
+          <div class="space-y-6">
+            <div class="grid grid-cols-3 gap-4 items-end">
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2"
+                  >From
+                </label>
+                <div class="relative">
+                  <select
+                    id="set-from"
+                    class="w-full p-4 bg-gray-50 rounded-2xl appearance-none outline-none"
+                  ></select>
+                </div>
+              </div>
+              <div class="text-center pb-3">
+                <i class="fas fa-arrow-right text-gray-400"></i>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2"
+                  >To
+                </label>
+                <div class="relative">
+                  <select
+                    id="set-to"
+                    class="w-full p-4 bg-gray-50 rounded-2xl appearance-none outline-none"
+                  ></select>
+                </div>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2"
+                >Amount (LKR)
+              </label>
+              <input
+                type="number"
+                id="set-amount"
+                placeholder="0.00"
+                class="w-full p-4 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2 focus:ring-orange-500 text-2xl"
+                onwheel="this.blur()"
+                inputmode="decimal"
+              />
+            </div>
+            <button
+              onclick="saveSettlement()"
+              class="w-full btn-primary text-white font-bold py-4 rounded-2xl mt-4"
+            >
+              Record Payment
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="page-history" class="hidden animate-slide-up px-4">
+        <div class="flex items-center gap-3 mb-8 mt-6">
+          <button
+            onclick="showPage('dashboard', document.querySelector('[onclick*=\'dashboard\']'))"
+            class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600"
+          >
+            <i class="fas fa-arrow-left"></i>
+          </button>
+          <h2 class="text-2xl font-bold text-gray-900">History</h2>
+        </div>
+        <div id="transaction-list" class="space-y-4 pb-4"></div>
+      </div>
+      <div id="page-settings" class="hidden animate-slide-up px-4">
+        <div class="flex items-center gap-3 mb-8 mt-6">
+          <button
+            onclick="showPage('dashboard', document.querySelector('[onclick*=\'dashboard\']'))"
+            class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600"
+          >
+            <i class="fas fa-arrow-left"></i>
+          </button>
+          <h2 class="text-2xl font-bold text-gray-900">Settings</h2>
+        </div>
+        
+        <div
+          class="bg-white p-6 rounded-3xl shadow-lg border border-gray-200 mb-6"
+        >
+          <h3 class="text-lg font-bold text-gray-800 mb-4">Add New Member</h3>
+          <div class="flex gap-3 settings-input-row">
+            <input
+              type="text"
+              id="setting-new-member"
+              placeholder="Name..."
+              class="flex-1 p-4 bg-gray-50 rounded-2xl outline-none"
+            />
+            <button
+              onclick="addNewMember()"
+              class="primary-gradient text-white px-6 py-3 rounded-2xl font-bold"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-3xl shadow-lg border border-gray-200 mb-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">Manage Members</h3>
+            <div id="settings-member-list" class="space-y-3">
+                </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-3xl shadow-lg border border-red-200">
+          <h3 class="text-lg font-bold text-red-600 mb-4">Danger Zone</h3>
+          <button
+            onclick="resetData()"
+            class="w-full py-4 bg-red-500 text-white font-bold rounded-2xl"
+          >
+            Reset All Data
+          </button>
+        </div>
+        <div class="text-center mt-12 mb-20">
+          <p class="text-sm text-gray-500">Roomer v1.2</p>
+          <p class="text-xs text-gray-400 mt-2">Developed by The Zenon Studio</p>
+        </div>
+      </div>
+    </div>
+    <div
+      id="bottom-nav"
+      class="hidden fixed bottom-5 left-5 right-5 glass-effect rounded-3xl shadow-xl p-2 flex justify-between items-center z-30 border border-gray-200"
+    >
+      <button
+        onclick="showPage('dashboard', this)"
+        class="nav-item active flex-1 py-4 rounded-2xl flex flex-col items-center gap-2 text-primary"
+      >
+        <i class="fas fa-home"></i>
+        <span class="text-xs font-semibold">Home</span>
+      </button>
+      <button
+        onclick="showPage('add', this)"
+        class="nav-item flex-1 py-4 rounded-2xl flex flex-col items-center gap-2 text-gray-600"
+      >
+        <i class="fas fa-plus"></i>
+        <span class="text-xs font-semibold">Add</span>
+      </button>
+      <button
+        onclick="showPage('history', this)"
+        class="nav-item flex-1 py-4 rounded-2xl flex flex-col items-center gap-2 text-gray-600"
+      >
+        <i class="fas fa-history"></i>
+        <span class="text-xs font-semibold">History</span>
+      </button>
+      <button
+        onclick="showPage('settings', this)"
+        class="nav-item flex-1 py-4 rounded-2xl flex flex-col items-center gap-2 text-gray-600"
+      >
+        <i class="fas fa-cog"></i>
+        <span class="text-xs font-semibold">Settings</span>
+      </button>
+    </div>
+    <div
+      id="confirmModal"
+      class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white w-full max-w-sm rounded-3xl shadow-2xl animate-scale-in p-8 text-center"
+      >
+        <div
+          class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-6"
+        >
+          <i class="fas fa-exclamation-triangle text-red-500 text-2xl"></i>
+        </div>
+        <h3 class="text-xl font-bold text-gray-900 mb-2">Are you sure?</h3>
+        <p id="confirmMsg" class="text-gray-600 mb-8">
+          This action cannot be undone.
+        </p>
+        <div class="flex gap-4">
+          <button
+            id="confirmCancel"
+            class="flex-1 py-3 bg-gray-100 text-gray-700 font-semibold rounded-2xl"
+          >
+            Cancel
+          </button>
+          <button
+            id="confirmOk"
+            class="flex-1 py-3 bg-red-600 text-white font-semibold rounded-2xl"
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+    <script>
+      // --- CORE DATA & LOGIC ---
+      // We now store objects in users array to handle active/archived state
+      // Backward compatibility check: if users is string array, convert to objects
+      let rawUsers = JSON.parse(localStorage.getItem("roomer_users")) || [];
+      
+      // Migration logic for old data format
+      let users = rawUsers.map(u => {
+          if (typeof u === 'string') return { name: u, active: true };
+          return u;
+      });
+
+      let transactions =
+        JSON.parse(localStorage.getItem("roomer_transactions")) || [];
+      let tempSetupUsers = [];
+      let confirmCallback = null;
+      const round = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
+
+      window.onload = function () {
+        if (users.length === 0)
+          document.getElementById("setup-screen").classList.remove("hidden");
+        else initApp();
+
+        // Set Date
+        const dateOptions = { weekday: "long", month: "short", day: "numeric" };
+        document.getElementById("currentDate").innerText =
+          new Date().toLocaleDateString("en-US", dateOptions);
+      };
+
+      function initApp() {
+        document.getElementById("setup-screen").classList.add("hidden");
+        document.getElementById("main-app").classList.remove("hidden");
+        document.getElementById("bottom-nav").classList.remove("hidden");
+        updateDashboard();
+        updateForms();
+        loadHistory();
+        renderSettingsMemberList();
+      }
+
+      // --- DIRECT DEBT CALCULATION ---
+      function calculateBalances() {
+        let debtMatrix = {};
+        let totals = {};
+        let totalSpent = 0;
+
+        users.forEach((u) => {
+          debtMatrix[u.name] = {};
+          totals[u.name] = 0;
+          users.forEach((u2) => {
+            if (u.name !== u2.name) debtMatrix[u.name][u2.name] = 0;
+          });
+        });
+
+        transactions.forEach((t) => {
+          let amount = parseFloat(t.amount);
+          if (t.type === "expense") {
+            totalSpent += amount;
+            let count = t.splitBetween.length || 1;
+            let splitAmount = round(amount / count);
+            t.splitBetween.forEach((consumer) => {
+              if (consumer !== t.payer) {
+                // Ensure users exist in matrix (handle legacy data or archived users)
+                if(!debtMatrix[consumer]) debtMatrix[consumer] = {};
+                if(!totals[consumer]) totals[consumer] = 0;
+                if(!totals[t.payer]) totals[t.payer] = 0;
+
+                if (debtMatrix[consumer][t.payer] === undefined) debtMatrix[consumer][t.payer] = 0;
+
+                debtMatrix[consumer][t.payer] = round(
+                  debtMatrix[consumer][t.payer] + splitAmount
+                );
+                
+                totals[consumer] -= splitAmount;
+                totals[t.payer] += splitAmount;
+              }
+            });
+          } else if (t.type === "settlement") {
+             // Handle archived users in settlement history
+             if(!debtMatrix[t.from]) debtMatrix[t.from] = {};
+             if(!totals[t.from]) totals[t.from] = 0;
+             if(!totals[t.to]) totals[t.to] = 0;
+
+            if (debtMatrix[t.from][t.to] === undefined) debtMatrix[t.from][t.to] = 0;
+
+            debtMatrix[t.from][t.to] = round(
+              debtMatrix[t.from][t.to] - amount
+            );
+            
+            totals[t.from] += amount;
+            totals[t.to] -= amount;
+          }
+        });
+
+        let finalDebts = [];
+        let processedPairs = new Set();
+
+        users.forEach((u1) => {
+          users.forEach((u2) => {
+            if (u1.name === u2.name) return;
+            let pairKey = [u1.name, u2.name].sort().join("-");
+            if (processedPairs.has(pairKey)) return;
+            processedPairs.add(pairKey);
+
+            let u1_owes_u2 = (debtMatrix[u1.name] && debtMatrix[u1.name][u2.name]) || 0;
+            let u2_owes_u1 = (debtMatrix[u2.name] && debtMatrix[u2.name][u1.name]) || 0;
+            let net = u1_owes_u2 - u2_owes_u1;
+
+            if (net > 0.01)
+              finalDebts.push({ from: u1.name, to: u2.name, amount: round(net) });
+            else if (net < -0.01)
+              finalDebts.push({
+                from: u2.name,
+                to: u1.name,
+                amount: round(Math.abs(net)),
+              });
+          });
+        });
+
+        return { finalDebts, totals, totalSpent };
+      }
+
+      // --- UI FUNCTIONS ---
+      function updateDashboard() {
+        const { finalDebts, totals, totalSpent } = calculateBalances();
+        document.getElementById("total-expenses").innerText =
+          totalSpent.toFixed(2);
+        
+        // Count only active members
+        document.getElementById("member-count").innerText = users.filter(u => u.active).length;
+        document.getElementById("transaction-count").innerText =
+          transactions.length;
+
+        let hasDebts = finalDebts.length > 0;
+        const balSummary = document.getElementById("balance-summary");
+        balSummary.innerText = hasDebts
+          ? `${finalDebts.length} active debts`
+          : "All settled";
+        balSummary.className = `text-sm px-3 py-1 rounded-full font-medium ${
+          hasDebts
+            ? "bg-orange-100 text-orange-700"
+            : "bg-green-100 text-green-700"
+        }`;
+
+        const list = document.getElementById("members-balance-list");
+        list.innerHTML = "";
+        
+        // Sort: Active users first, then archived
+        const sortedUsers = [...users].sort((a, b) => b.active - a.active);
+
+        sortedUsers.forEach((u) => {
+          let bal = totals[u.name] || 0;
+          let isPlus = bal > 0.01;
+          let isMinus = bal < -0.01;
+          
+          let statusIcon = isPlus
+            ? "fa-arrow-down"
+            : isMinus
+            ? "fa-arrow-up"
+            : "fa-check";
+          
+          let statusText = isPlus ? "Gets back" : isMinus ? "Owes" : "Settled";
+          
+          // Special styling for left members
+          if (!u.active) {
+              statusText = "Left Group";
+              statusIcon = "fa-user-slash";
+          }
+
+          let div = document.createElement("div");
+          // Add opacity for inactive members
+          div.className =
+            `bg-white p-4 rounded-3xl shadow-sm border border-gray-200 card-hover cursor-pointer ${!u.active ? 'opacity-75 grayscale' : ''}`;
+          div.onclick = () => showDetails(u.name);
+          div.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-xl ${
+                              !u.active ? "bg-gray-200 text-gray-500" :
+                              isPlus
+                                ? "bg-green-100 text-green-600"
+                                : isMinus
+                                ? "bg-orange-100 text-orange-600"
+                                : "bg-gray-100 text-gray-600"
+                            } flex items-center justify-center">
+                                <i class="fas ${statusIcon}"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-900">${u.name} ${!u.active ? '<span class="text-xs bg-gray-200 px-2 py-0.5 rounded text-gray-600 ml-1">Left</span>' : ''}</h4>
+                                <p class="text-xs text-gray-500">${statusText}</p>
+                            </div>
+                        </div>
+                        <div class="text-right"><p class="text-2xl font-bold ${
+                          !u.active ? "text-gray-500" :
+                          isPlus
+                            ? "text-green-600"
+                            : isMinus
+                            ? "text-orange-600"
+                            : "text-gray-600"
+                        }">${Math.abs(bal).toFixed(2)}</p></div>
+                    </div>`;
+          list.appendChild(div);
+        });
+
+        const suggDiv = document.getElementById("settlement-suggestions");
+        suggDiv.innerHTML = "";
+        if (finalDebts.length === 0) {
+          suggDiv.innerHTML = `<div class="text-center p-8 bg-green-50 rounded-3xl border border-green-200"><div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4"><i class="fas fa-check text-green-600 text-2xl"></i></div><h4 class="font-bold text-gray-800 mb-2">All settled up!</h4></div>`;
+        } else {
+          finalDebts.forEach((d) => {
+            let div = document.createElement("div");
+            div.className =
+              "bg-white p-5 rounded-3xl shadow-sm border border-gray-200 card-hover";
+            div.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center"><i class="fas fa-exchange-alt text-orange-600"></i></div>
+                                <div><p class="text-sm text-gray-600">Owes</p><p class="font-bold text-gray-900"><span class="text-orange-600">${
+                                  d.from
+                                }</span> → <span class="text-green-600">${
+              d.to
+            }</span></p></div>
+                            </div>
+                            <div class="text-right"><p class="text-2xl font-bold text-gray-900">${d.amount.toFixed(
+                              2
+                            )}</p><p class="text-xs text-gray-500">LKR</p></div>
+                        </div>`;
+            suggDiv.appendChild(div);
+          });
+        }
+      }
+
+      function loadHistory() {
+        const list = document.getElementById("transaction-list");
+        list.innerHTML = "";
+        if (transactions.length === 0) {
+          list.innerHTML = `<div class="text-center p-12 bg-gray-50 rounded-3xl border border-gray-200"><h4 class="font-bold text-gray-800 mb-2">No transactions yet</h4><p class="text-gray-600 text-sm">Add your first expense</p></div>`;
+          return;
+        }
+        transactions.forEach((t) => {
+          let isExp = t.type === "expense";
+          let icon = isExp ? "fa-receipt" : "fa-handshake";
+          let bgColor = isExp ? "bg-emerald-50" : "bg-green-100";
+          let iconColor = isExp ? "text-emerald-600" : "text-green-600";
+          let div = document.createElement("div");
+          // Add cursor-pointer and onclick to the card
+          div.className =
+            "bg-white p-5 rounded-3xl shadow-sm border border-gray-200 card-hover cursor-pointer";
+          div.onclick = () => showTransactionDetails(t.id);
+          
+          div.innerHTML = `
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex items-start gap-4">
+                            <div class="w-12 h-12 rounded-xl ${bgColor} flex items-center justify-center ${iconColor}"><i class="fas ${icon} text-lg"></i></div>
+                            <div>
+                                <h4 class="font-bold text-gray-900 text-sm">${
+                                  t.description
+                                }</h4>
+                                <p class="text-xs text-gray-500 mt-1">${
+                                  t.date
+                                }</p>
+                                <div class="mt-2"><span class="text-xs px-2 py-1 bg-gray-100 rounded-full">${
+                                  isExp
+                                    ? `Paid by <b>${t.payer}</b>`
+                                    : `<b>${t.from}</b> → <b>${t.to}</b>`
+                                }</span></div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xl font-bold ${
+                              isExp ? "text-gray-900" : "text-green-600"
+                            }">${isExp ? "-" : "+"} ${parseFloat(
+            t.amount
+          ).toFixed(2)}</p>
+                            <button onclick="event.stopPropagation(); confirmDelete(${
+                              t.id
+                            })" class="text-red-500 text-sm font-medium mt-2 hover:text-red-700">Delete</button>
+                        </div>
+                    </div>
+                    ${
+                      isExp
+                        ? `<div class="pt-3 border-t border-gray-100"><p class="text-xs text-gray-600 mb-2">Split between:</p><div class="flex flex-wrap gap-2">${(
+                            t.splitBetween || []
+                          )
+                            .map(
+                              (u) =>
+                                `<span class="text-xs px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full font-medium">${u}</span>`
+                            )
+                            .join("")}</div></div>`
+                        : ""
+                    }`;
+          list.appendChild(div);
+        });
+      }
+
+      function updateForms() {
+        const payer = document.getElementById("exp-payer");
+        const split = document.getElementById("exp-split-group");
+        const sFrom = document.getElementById("set-from");
+        const sTo = document.getElementById("set-to");
+
+        payer.innerHTML = "";
+        split.innerHTML = "";
+        sFrom.innerHTML = "";
+        sTo.innerHTML = "";
+        
+        // Filter only active users for forms
+        users.filter(u => u.active).forEach((u) => {
+          payer.innerHTML += `<option value="${u.name}">${u.name}</option>`;
+          sFrom.innerHTML += `<option value="${u.name}">${u.name}</option>`;
+          sTo.innerHTML += `<option value="${u.name}">${u.name}</option>`;
+          let label = document.createElement("label");
+          label.className = "cursor-pointer";
+          label.innerHTML = `<input type="checkbox" class="hidden peer" checked><div class="p-4 rounded-2xl border-2 border-gray-200 bg-gray-50 text-gray-700 font-medium text-center transition-all duration-300">${u.name}</div>`;
+          label.dataset.name = u.name;
+          split.appendChild(label);
+        });
+      }
+
+      function renderSettingsMemberList() {
+          const list = document.getElementById('settings-member-list');
+          list.innerHTML = '';
+          const { totals } = calculateBalances();
+
+          users.forEach(u => {
+              // Only show active users in the removable list (or show removed ones differently)
+              if(!u.active) return; 
+
+              let bal = totals[u.name] || 0;
+              let canRemove = Math.abs(bal) < 0.01; // Can only remove if balance is 0
+
+              let div = document.createElement('div');
+              div.className = "flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-100";
+              div.innerHTML = `
+                  <div class="flex items-center gap-3">
+                      <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
+                          ${u.name.charAt(0)}
+                      </div>
+                      <span class="font-medium text-gray-700">${u.name}</span>
+                  </div>
+                  ${canRemove 
+                      ? `<button onclick="removeMember('${u.name}')" class="text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg text-xs font-bold transition">Remove</button>`
+                      : `<span class="text-xs text-orange-500 font-medium bg-orange-50 px-2 py-1 rounded">Settle debts first</span>`
+                  }
+              `;
+              list.appendChild(div);
+          });
+      }
+
+      function removeMember(name) {
+          showConfirm(`Remove ${name} from group? They will remain in history.`, () => {
+              // Find user and set active to false
+              const userIndex = users.findIndex(u => u.name === name);
+              if(userIndex > -1) {
+                  users[userIndex].active = false;
+                  localStorage.setItem("roomer_users", JSON.stringify(users));
+                  updateForms();
+                  updateDashboard();
+                  renderSettingsMemberList();
+                  showToast(`${name} removed`);
+              }
+          });
+      }
+
+      // --- ACTIONS ---
+      function saveExpense() {
+        const desc = document.getElementById("exp-desc").value;
+        const amount = parseFloat(document.getElementById("exp-amount").value);
+        const payer = document.getElementById("exp-payer").value;
+        let splitBetween = [];
+        const checkboxes = document.getElementById("exp-split-group").children;
+        for (let lbl of checkboxes) {
+          if (lbl.querySelector("input").checked)
+            splitBetween.push(lbl.dataset.name);
+        }
+
+        if (!desc || isNaN(amount) || splitBetween.length === 0) {
+          showToast("Please fill all fields", false);
+          return;
+        }
+
+        transactions.unshift({
+          id: Date.now(),
+          date: new Date().toLocaleDateString(),
+          type: "expense",
+          description: desc,
+          amount: amount,
+          payer: payer,
+          splitBetween: splitBetween,
+        });
+        saveAndRefresh();
+        document.getElementById("exp-desc").value = "";
+        document.getElementById("exp-amount").value = "";
+        showToast("Expense added!");
+      }
+
+      function saveSettlement() {
+        const from = document.getElementById("set-from").value;
+        const to = document.getElementById("set-to").value;
+        const amount = parseFloat(document.getElementById("set-amount").value);
+        if (from === to || isNaN(amount) || amount <= 0) {
+          showToast("Invalid details", false);
+          return;
+        }
+
+        transactions.unshift({
+          id: Date.now(),
+          date: new Date().toLocaleDateString(),
+          type: "settlement",
+          description: "Payment",
+          amount: amount,
+          from: from,
+          to: to,
+        });
+        saveAndRefresh();
+        document.getElementById("set-amount").value = "";
+        showToast("Payment recorded!");
+      }
+
+      function addMemberToList(mode) {
+        let inputId =
+          mode === "setup" ? "new-member-name" : "setting-new-member";
+        let name = document.getElementById(inputId).value.trim();
+        if (!name) return;
+        
+        // Check if name exists (even if archived)
+        const exists = users.some(u => u.name === name);
+        
+        if (mode === "setup" && !tempSetupUsers.includes(name)) {
+          tempSetupUsers.push(name);
+          renderSetupMembers();
+        }
+        document.getElementById(inputId).value = "";
+      }
+
+      function renderSetupMembers() {
+        document.getElementById("setup-members-list").innerHTML = tempSetupUsers
+          .map(
+            (u, index) =>
+              `<div class="flex items-center gap-2 bg-emerald-50 px-4 py-2.5 rounded-2xl"><span class="font-semibold text-emerald-700">${u}</span><button onclick="removeMemberFromSetup(${index})" class="text-emerald-600 hover:text-emerald-800 font-bold text-lg leading-none ml-1">×</button></div>`
+          )
+          .join("");
+      }
+
+      function removeMemberFromSetup(index) {
+        tempSetupUsers.splice(index, 1);
+        renderSetupMembers();
+      }
+
+      function addNewMember() {
+        let name = document.getElementById("setting-new-member").value.trim();
+        
+        // Check if user already exists
+        const existingUser = users.find(u => u.name === name);
+
+        if (!name) {
+          showToast("Invalid name", false);
+          return;
+        }
+
+        if (existingUser) {
+            if (existingUser.active) {
+                showToast("Member already exists", false);
+                return;
+            } else {
+                // Reactivate archived user
+                existingUser.active = true;
+                localStorage.setItem("roomer_users", JSON.stringify(users));
+                updateForms();
+                updateDashboard();
+                renderSettingsMemberList();
+                document.getElementById("setting-new-member").value = "";
+                showToast("Member reactivated");
+                return;
+            }
+        }
+
+        // Add new active user
+        users.push({ name: name, active: true });
+        localStorage.setItem("roomer_users", JSON.stringify(users));
+        updateForms();
+        updateDashboard();
+        renderSettingsMemberList();
+        document.getElementById("setting-new-member").value = "";
+        showToast("Member added");
+      }
+
+      function finishSetup() {
+        if (tempSetupUsers.length < 2) {
+          showToast("Add at least 2 people", false);
+          return;
+        }
+        // Convert temp strings to objects
+        users = tempSetupUsers.map(name => ({ name: name, active: true }));
+        localStorage.setItem("roomer_users", JSON.stringify(users));
+        initApp();
+      }
+
+      function saveAndRefresh() {
+        localStorage.setItem(
+          "roomer_transactions",
+          JSON.stringify(transactions)
+        );
+        updateDashboard();
+        loadHistory();
+        renderSettingsMemberList(); // Re-render to check if balances changed (unlock remove buttons)
+      }
+
+      function resetData() {
+        showConfirm("Delete ALL data?", () => {
+          localStorage.clear();
+          location.reload();
+        });
+      }
+
+      // --- HELPERS ---
+      function showPage(pageId, btn) {
+        document
+          .querySelectorAll("#main-app > div")
+          .forEach((el) => el.classList.add("hidden"));
+        document.getElementById("page-" + pageId).classList.remove("hidden");
+        document.querySelectorAll(".nav-item").forEach((el) => {
+          el.classList.remove("active", "text-primary");
+          el.classList.add("text-gray-600");
+          const iconWrap = el.querySelector("div");
+          if (iconWrap) {
+            iconWrap.classList.remove("bg-primary-soft", "text-primary");
+            iconWrap.classList.add("bg-gray-100");
+          }
+        });
+        if (btn) {
+          btn.classList.add("active", "text-primary");
+          btn.classList.remove("text-gray-600");
+          const activeIconWrap = btn.querySelector("div");
+          if (activeIconWrap) {
+            activeIconWrap.classList.add("bg-primary-soft", "text-primary");
+          }
+        }
+        window.scrollTo(0, 0);
+      }
+
+      function toggleAddMode(mode) {
+        const expBtn = document.getElementById("btn-mode-expense");
+        const setBtn = document.getElementById("btn-mode-settlement");
+        if (mode === "expense") {
+          expBtn.className =
+            "flex-1 py-4 rounded-xl font-bold text-sm transition-all primary-gradient text-white shadow-md";
+          setBtn.className =
+            "flex-1 py-4 rounded-xl font-bold text-sm text-gray-600 transition-all hover:bg-gray-50";
+          document.getElementById("form-expense").classList.remove("hidden");
+          document.getElementById("form-settlement").classList.add("hidden");
+        } else {
+          setBtn.className =
+            "flex-1 py-4 rounded-xl font-bold text-sm transition-all bg-gradient-to-r from-orange-400 to-orange-600 text-white shadow-md";
+          expBtn.className =
+            "flex-1 py-4 rounded-xl font-bold text-sm text-gray-600 transition-all hover:bg-gray-50";
+          document.getElementById("form-settlement").classList.remove("hidden");
+          document.getElementById("form-expense").classList.add("hidden");
+        }
+      }
+
+      function showDetails(user) {
+        let paid = 0,
+          consumed = 0;
+        transactions.forEach((t) => {
+          if (t.type === "expense") {
+            if (t.payer === user) paid += parseFloat(t.amount);
+            if (t.splitBetween.includes(user))
+              consumed += parseFloat(t.amount) / t.splitBetween.length;
+          }
+        });
+        document.getElementById("detail-name").innerText = user;
+        document.getElementById("detail-paid").innerText = paid.toFixed(2);
+        document.getElementById("detail-spent").innerText = consumed.toFixed(2);
+        document.getElementById("detailsModal").classList.remove("hidden");
+      }
+
+      function closeDetails() {
+        document.getElementById("detailsModal").classList.add("hidden");
+      }
+
+      // --- NEW FUNCTIONS FOR TRANSACTION DETAILS ---
+
+      function showTransactionDetails(id) {
+        const t = transactions.find((tr) => tr.id === id);
+        if (!t) return;
+
+        document.getElementById("trans-detail-desc").innerText = t.description;
+        document.getElementById("trans-detail-date").innerText = t.date;
+        const contentDiv = document.getElementById("trans-detail-content");
+        contentDiv.innerHTML = "";
+
+        if (t.type === "expense") {
+          // Show Payer
+          contentDiv.innerHTML += `
+            <div class="flex items-center justify-between p-4 bg-blue-50 rounded-2xl border border-blue-100 mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-blue-600">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Paid by</p>
+                        <p class="text-lg font-bold text-gray-900">${t.payer}</p>
+                    </div>
+                </div>
+                <p class="text-xl font-bold text-blue-600">${parseFloat(t.amount).toFixed(2)}</p>
+            </div>
+            <h4 class="font-bold text-gray-800 mb-2 px-1">Split Breakdown</h4>
+          `;
+
+          // Show Split breakdown
+          const splitAmount = t.amount / t.splitBetween.length;
+          t.splitBetween.forEach(user => {
+            contentDiv.innerHTML += `
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl mb-2">
+                    <div class="flex items-center gap-3">
+                         <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-xs">
+                            ${user.charAt(0)}
+                         </div>
+                         <span class="font-medium text-gray-700">${user}</span>
+                    </div>
+                    <span class="font-bold text-orange-600 text-sm">- ${splitAmount.toFixed(2)}</span>
+                </div>
+            `;
+          });
+
+        } else if (t.type === "settlement") {
+           contentDiv.innerHTML += `
+            <div class="flex flex-col items-center justify-center p-6 bg-green-50 rounded-3xl border border-green-100 text-center">
+                <p class="text-gray-500 font-medium mb-4">Money Transfer</p>
+                
+                <div class="flex items-center gap-4 w-full justify-between px-4">
+                    <div class="flex flex-col items-center">
+                        <div class="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold mb-2 text-lg">
+                            ${t.from.charAt(0)}
+                        </div>
+                        <span class="font-bold text-gray-800">${t.from}</span>
+                        <span class="text-xs text-gray-500">From</span>
+                    </div>
+
+                    <div class="flex flex-col items-center">
+                        <i class="fas fa-arrow-right text-green-500 text-xl"></i>
+                         <p class="text-xl font-bold text-green-600 mt-1">${parseFloat(t.amount).toFixed(2)}</p>
+                    </div>
+
+                    <div class="flex flex-col items-center">
+                        <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold mb-2 text-lg">
+                            ${t.to.charAt(0)}
+                        </div>
+                         <span class="font-bold text-gray-800">${t.to}</span>
+                         <span class="text-xs text-gray-500">To</span>
+                    </div>
+                </div>
+            </div>
+           `;
+        }
+
+        document.getElementById("transactionModal").classList.remove("hidden");
+      }
+
+      function closeTransactionModal() {
+        document.getElementById("transactionModal").classList.add("hidden");
+      }
+
+      // --- END NEW FUNCTIONS ---
+
+      function showToast(msg, success = true) {
+        const t = document.getElementById("toast");
+        document.getElementById("toastMsg").innerText = msg;
+        t.classList.remove("opacity-0", "-translate-y-4");
+        setTimeout(() => t.classList.add("opacity-0", "-translate-y-4"), 3000);
+      }
+      function showConfirm(msg, cb) {
+        document.getElementById("confirmMsg").innerText = msg;
+        document.getElementById("confirmModal").classList.remove("hidden");
+        confirmCallback = cb;
+      }
+      document.getElementById("confirmCancel").onclick = () =>
+        document.getElementById("confirmModal").classList.add("hidden");
+      document.getElementById("confirmOk").onclick = () => {
+        if (confirmCallback) confirmCallback();
+        document.getElementById("confirmModal").classList.add("hidden");
+      };
+      function confirmDelete(id) {
+        showConfirm("Delete transaction?", () => {
+          transactions = transactions.filter((t) => t.id !== id);
+          saveAndRefresh();
+          showToast("Deleted");
+        });
+      }
+    </script>
+  </body>
+</html>
