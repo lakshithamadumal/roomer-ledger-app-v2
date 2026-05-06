@@ -22,9 +22,9 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/Roomer.png
+    - assets/roomer-light-logo.png
     - assets/welcome-screen-illustration.png
-    - assets/Roomer-Green.png
+    - assets/roomer-green-logo.png
     - assets/icon/
     - assets/admin-approval-screen-illustration.png
     - assets/waiting-screen-illustration.png
