@@ -42,7 +42,7 @@ class _SplashScreenState extends State<SplashScreen> {
               child: SizedBox(
                 width: 140,
                 height: 140,
-                child: Image.asset('assets/Roomer.png'),
+                child: Image.asset('assets/roomer-light-logo.png'),
               ),
             ),
 

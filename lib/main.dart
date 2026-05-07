@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-// import 'screens/splash/splash_screen.dart';
-import 'screens/dashboard/dashboard_screen.dart';
+import 'screens/splash/splash_screen.dart';
+// import 'screens/dashboard/dashboard_screen.dart';
 
 
 void main() {
@@ -26,7 +26,7 @@ class RoomerApp extends StatelessWidget {
           brightness: Brightness.light,
         ),
       ),
-      home: const DashboardScreen(), // මෙතනට ඔයාගේ screen එක දාන්න
+      home: const SplashScreen(), // මෙතනට ඔයාගේ screen එක දාන්න
     );
   }
 }
