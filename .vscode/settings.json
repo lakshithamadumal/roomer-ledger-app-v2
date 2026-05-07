@@ -1,0 +1,28 @@
+{
+  "gradle.autoDetect": "off",
+  "java.configuration.updateBuildConfiguration": "disabled",
+  "java.import.gradle.enabled": false,
+  "java.import.exclusions": [
+    "**/build/**",
+    "**/.dart_tool/**",
+    "**/build/jni/**",
+    "**/build/jni_flutter/**",
+    "**/build/**/jni/**",
+    "**/build/**/jni_flutter/**"
+  ],
+  "files.exclude": {
+    "build/jni": true,
+    "build/jni_flutter": true,
+    "**/build/jni/**": true,
+    "**/build/jni_flutter/**": true
+  },
+  "search.exclude": {
+    "**/build/jni/**": true,
+    "**/build/jni_flutter/**": true
+  },
+  "files.watcherExclude": {
+    "**/build/jni/**": true,
+    "**/build/jni_flutter/**": true,
+    "**/.dart_tool/**": true
+  }
+}
