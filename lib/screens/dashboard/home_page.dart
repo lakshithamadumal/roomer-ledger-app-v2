@@ -64,7 +64,7 @@ class HomePage extends StatelessWidget {
                                 child: Padding(
                                   padding: const EdgeInsets.all(8.5),
                                   child: Image.asset(
-                                    'assets/Roomer.png',
+                                    'assets/roomer-light-logo.png',
                                     fit: BoxFit.contain,
                                   ),
                                 ),

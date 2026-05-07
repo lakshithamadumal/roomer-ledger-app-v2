@@ -71,12 +71,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Container(
                         height: 72,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(.84),
+                          color: Colors.white.withValues(alpha: .84),
                           borderRadius: BorderRadius.circular(32),
                           border: Border.all(color: RoomerColors.border),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(.06),
+                              color: Colors.black.withValues(alpha: .06),
                               blurRadius: 18,
                               offset: const Offset(0, 8),
                             ),
@@ -137,12 +137,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       gradient: LinearGradient(
                         colors: [
                           RoomerColors.primary,
-                          RoomerColors.primary.withOpacity(.88),
+                          RoomerColors.primary.withValues(alpha: .88),
                         ],
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: RoomerColors.primary.withOpacity(.28),
+                          color: RoomerColors.primary.withValues(alpha: .28),
                           blurRadius: 18,
                           offset: const Offset(0, 8),
                         ),
