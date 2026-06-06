@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../dashboard/dashboard_screen.dart';
+
 class RoomSetupScreen extends StatefulWidget {
   const RoomSetupScreen({super.key});
 
@@ -104,9 +106,7 @@ class _RoomSetupScreenState extends State<RoomSetupScreen> {
                 controller: roomController,
                 decoration: InputDecoration(
                   hintText: 'e.g. The Mora 2026',
-                  hintStyle: const TextStyle(
-                    color: Color(0xFF9CA3AF),
-                  ),
+                  hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
                   filled: true,
                   fillColor: Colors.white,
                   contentPadding: const EdgeInsets.symmetric(
@@ -163,8 +163,7 @@ class _RoomSetupScreenState extends State<RoomSetupScreen> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: currencies.length,
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 4,
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
@@ -172,8 +171,7 @@ class _RoomSetupScreenState extends State<RoomSetupScreen> {
                   ),
                   itemBuilder: (context, index) {
                     final currency = currencies[index];
-                    final isSelected =
-                        selectedCurrency == currency['code'];
+                    final isSelected = selectedCurrency == currency['code'];
 
                     return GestureDetector(
                       onTap: () {
@@ -200,9 +198,7 @@ class _RoomSetupScreenState extends State<RoomSetupScreen> {
                           children: [
                             Text(
                               currency['flag']!,
-                              style: const TextStyle(
-                                fontSize: 16,
-                              ),
+                              style: const TextStyle(fontSize: 16),
                             ),
 
                             const SizedBox(width: 6),
@@ -233,7 +229,13 @@ class _RoomSetupScreenState extends State<RoomSetupScreen> {
                 height: 58,
                 child: ElevatedButton(
                   onPressed: () {
-                    // TODO CREATE ROOM
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const DashboardScreen(),
+                      ),
+                      (route) => false,
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     elevation: 0,
