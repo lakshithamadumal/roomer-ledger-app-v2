@@ -77,7 +77,7 @@ class NotificationPage extends StatelessWidget {
                           Icon(
                             Icons.notifications_none_rounded,
                             size: 64,
-                            color: RoomerColors.mutedText.withOpacity(.3),
+                            color: RoomerColors.mutedText.withValues(alpha: .3),
                           ),
                           const SizedBox(height: 16),
                           Text(
@@ -85,7 +85,9 @@ class NotificationPage extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: RoomerColors.mutedText.withOpacity(.6),
+                              color: RoomerColors.mutedText.withValues(
+                                alpha: .6,
+                              ),
                             ),
                           ),
                         ],
@@ -134,7 +136,7 @@ class _NotificationItem extends StatelessWidget {
         border: Border.all(color: RoomerColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(.04),
+            color: Colors.black.withValues(alpha: .04),
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),
@@ -148,7 +150,7 @@ class _NotificationItem extends StatelessWidget {
             height: 44,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: iconColor.withOpacity(.12),
+              color: iconColor.withValues(alpha: .12),
             ),
             child: Center(child: Icon(icon, color: iconColor, size: 22)),
           ),
