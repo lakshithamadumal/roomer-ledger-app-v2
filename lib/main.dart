@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/constants.dart';
 import 'screens/splash/splash_screen.dart';
-// import 'screens/dashboard/dashboard_screen.dart';
 
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-void main() {
+  await Supabase.initialize(
+    url: SupabaseCredentials.url,
+    anonKey: SupabaseCredentials.anonKey,
+  );
+
   runApp(const RoomerApp());
 }
 

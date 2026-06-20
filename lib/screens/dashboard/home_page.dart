@@ -1,26 +1,158 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-
 import '../../core/theme.dart';
+import '../../models/room.dart';
+import '../../models/room_member.dart';
+import '../../models/transaction_model.dart';
+
+class Debt {
+  final String fromId;
+  final String fromName;
+  final String toId;
+  final String toName;
+  final double amount;
+
+  Debt({
+    required this.fromId,
+    required this.fromName,
+    required this.toId,
+    required this.toName,
+    required this.amount,
+  });
+}
 
 class HomePage extends StatelessWidget {
   const HomePage({
     super.key,
+    required this.room,
+    required this.members,
+    required this.transactions,
     required this.onAddPressed,
     required this.onHistoryPressed,
     required this.onNotificationPressed,
   });
 
+  final Room room;
+  final List<RoomMember> members;
+  final List<TransactionModel> transactions;
+
   final VoidCallback onAddPressed;
   final VoidCallback onHistoryPressed;
   final VoidCallback onNotificationPressed;
 
+  Map<String, dynamic> _calculateBalances() {
+    double totalGroupSpending = 0;
+    final Map<String, double> balances = {};
+    final Map<String, Map<String, double>> debtMatrix = {};
+
+    // Filter approved members
+    final approvedMembers = members.where((m) => m.status == 'approved').toList();
+
+    // Initialize balances and debt matrix
+    for (var m1 in approvedMembers) {
+      balances[m1.userId] = 0.0;
+      debtMatrix[m1.userId] = {};
+      for (var m2 in approvedMembers) {
+        if (m1.userId != m2.userId) {
+          debtMatrix[m1.userId]![m2.userId] = 0.0;
+        }
+      }
+    }
+
+    // Filter approved transactions
+    final approvedTransactions = transactions.where((t) => t.status == 'approved').toList();
+
+    for (var t in approvedTransactions) {
+      if (t.type == 'expense') {
+        // Only include splits that are among currently approved members
+        final validSplits = t.splits.where((s) => balances.containsKey(s.userId)).toList();
+        if (validSplits.isEmpty) continue;
+
+        totalGroupSpending += t.amount;
+        final splitAmount = t.amount / validSplits.length;
+
+        for (var s in validSplits) {
+          balances[s.userId] = (balances[s.userId] ?? 0.0) - splitAmount;
+          if (t.payerId != null && balances.containsKey(t.payerId)) {
+            balances[t.payerId!] = (balances[t.payerId!] ?? 0.0) + splitAmount;
+          }
+
+          // Update pairwise debt matrix
+          if (t.payerId != null && s.userId != t.payerId && balances.containsKey(t.payerId)) {
+            final currentDebt = debtMatrix[s.userId]?[t.payerId] ?? 0.0;
+            debtMatrix[s.userId]?[t.payerId!] = currentDebt + splitAmount;
+          }
+        }
+      } else if (t.type == 'settlement') {
+        if (t.fromId != null && t.toId != null && balances.containsKey(t.fromId) && balances.containsKey(t.toId)) {
+          balances[t.fromId!] = (balances[t.fromId!] ?? 0.0) + t.amount;
+          balances[t.toId!] = (balances[t.toId!] ?? 0.0) - t.amount;
+
+          // Update pairwise debt matrix (reduce debt)
+          final currentDebt = debtMatrix[t.fromId]?[t.toId] ?? 0.0;
+          debtMatrix[t.fromId]?[t.toId!] = currentDebt - t.amount;
+        }
+      }
+    }
+
+    // Resolve net debts pairwise
+    final List<Debt> finalDebts = [];
+    final Set<String> processedPairs = {};
+
+    for (var m1 in approvedMembers) {
+      for (var m2 in approvedMembers) {
+        if (m1.userId == m2.userId) continue;
+        final pairKey = [m1.userId, m2.userId].toList()..sort();
+        final key = pairKey.join('-');
+        if (processedPairs.contains(key)) continue;
+        processedPairs.add(key);
+
+        final m1OwesM2 = debtMatrix[m1.userId]?[m2.userId] ?? 0.0;
+        final m2OwesM1 = debtMatrix[m2.userId]?[m1.userId] ?? 0.0;
+        final net = m1OwesM2 - m2OwesM1;
+
+        final m1Name = m1.profile?.username ?? 'Unknown';
+        final m2Name = m2.profile?.username ?? 'Unknown';
+
+        if (net > 0.01) {
+          finalDebts.add(Debt(
+            fromId: m1.userId,
+            fromName: m1Name,
+            toId: m2.userId,
+            toName: m2Name,
+            amount: net,
+          ));
+        } else if (net < -0.01) {
+          finalDebts.add(Debt(
+            fromId: m2.userId,
+            fromName: m2Name,
+            toId: m1.userId,
+            toName: m1Name,
+            amount: net.abs(),
+          ));
+        }
+      }
+    }
+
+    return {
+      'totalSpending': totalGroupSpending,
+      'balances': balances,
+      'debts': finalDebts,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
-    const totalSpent = '4184.00';
-    const memberCount = '3';
-    const transactionCount = '9';
-    const balanceChipText = '1 active debit';
+    final calc = _calculateBalances();
+    final double totalSpent = calc['totalSpending'] as double;
+    final Map<String, double> balances = calc['balances'] as Map<String, double>;
+    final List<Debt> debts = calc['debts'] as List<Debt>;
+
+    final approvedMembers = members.where((m) => m.status == 'approved').toList();
+    final pendingTransactions = transactions.where((t) => t.status == 'pending').toList();
+
+    final String balanceChipText = debts.isEmpty 
+        ? 'All settled' 
+        : '${debts.length} active ${debts.length == 1 ? 'debt' : 'debts'}';
 
     return Scaffold(
       backgroundColor: RoomerColors.background,
@@ -66,32 +198,59 @@ class HomePage extends StatelessWidget {
                                   child: Image.asset(
                                     'assets/roomer-light-logo.png',
                                     fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return const Icon(Icons.group_work, color: Colors.white);
+                                    },
                                   ),
                                 ),
                               ),
                               const SizedBox(width: 12),
                               Text(
-                                'Roomer',
+                                room.name,
                                 style: RoomerTextStyles.homeBrandTitle,
                               ),
                             ],
                           ),
-                          Material(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                            child: InkWell(
-                              onTap: onNotificationPressed,
-                              borderRadius: BorderRadius.circular(12),
-                              child: const SizedBox(
-                                width: 40,
-                                height: 40,
-                                child: Icon(
-                                  Icons.notifications_rounded,
-                                  color: Colors.white,
-                                  size: 22,
+                          Stack(
+                            children: [
+                              Material(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(12),
+                                child: InkWell(
+                                  onTap: onNotificationPressed,
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: const SizedBox(
+                                    width: 40,
+                                    height: 40,
+                                    child: Icon(
+                                      Icons.notifications_rounded,
+                                      color: Colors.white,
+                                      size: 22,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
+                              if (pendingTransactions.isNotEmpty)
+                                Positioned(
+                                  right: 4,
+                                  top: 4,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: RoomerColors.danger,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Text(
+                                      '${pendingTransactions.length}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                            ],
                           ),
                         ],
                       ),
@@ -110,10 +269,10 @@ class HomePage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.baseline,
                         textBaseline: TextBaseline.alphabetic,
                         children: [
-                          Text('LKR', style: RoomerTextStyles.homeHeroLkr),
+                          Text(room.currency, style: RoomerTextStyles.homeHeroLkr),
                           const SizedBox(width: 8),
                           Text(
-                            totalSpent,
+                            totalSpent.toStringAsFixed(2),
                             style: RoomerTextStyles.homeHeroAmount,
                           ),
                         ],
@@ -122,11 +281,11 @@ class HomePage extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         crossAxisAlignment: CrossAxisAlignment.end,
-                        children: const [
-                          _HeaderStat(label: 'Members', value: memberCount),
+                        children: [
+                          _HeaderStat(label: 'Members', value: '${approvedMembers.length}'),
                           _HeaderStat(
                             label: 'Transactions',
-                            value: transactionCount,
+                            value: '${transactions.where((t) => t.status == 'approved').length}',
                             alignRight: true,
                           ),
                         ],
@@ -159,47 +318,57 @@ class HomePage extends StatelessWidget {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: RoomerColors.orangeSoft,
+                          color: debts.isEmpty ? RoomerColors.successSoft : RoomerColors.orangeSoft,
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
                           balanceChipText,
-                          style: RoomerTextStyles.homeActiveDebtChip,
+                          style: RoomerTextStyles.homeActiveDebtChip.copyWith(
+                            color: debts.isEmpty ? RoomerColors.success : const Color(0xFFEA580C),
+                          ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _BalanceCard(
-                    name: 'A',
-                    status: 'Gets back',
-                    amount: '5,200.00',
-                    iconAsset: 'assets/icon/arrow-down-solid.svg',
-                    iconBackground: RoomerColors.successSoft,
-                    iconColor: Color(0xFF16A34A),
-                    amountColor: RoomerColors.success,
-                    iconSize: 17,
-                  ),
-                  _BalanceCard(
-                    name: 'B',
-                    status: 'Owes',
-                    amount: '5200.00',
-                    iconAsset: 'assets/icon/arrow-up-solid.svg',
-                    iconBackground: RoomerColors.orangeSoft,
-                    iconColor: Color(0xFFEA580C),
-                    amountColor: Color(0xFFEA580C),
-                    iconSize: 17,
-                  ),
-                  _BalanceCard(
-                    name: 'C',
-                    status: 'Settled',
-                    amount: '0.00',
-                    iconAsset: 'assets/icon/check-solid.svg',
-                    iconBackground: Color(0xFFF1F5F9),
-                    iconColor: Color(0xFF475569),
-                    amountColor: Color(0xFF475569),
-                    iconSize: 15,
-                  ),
+                  
+                  // List balances of each member
+                  ...approvedMembers.map((m) {
+                    final bal = balances[m.userId] ?? 0.0;
+                    final isPlus = bal > 0.01;
+                    final isMinus = bal < -0.01;
+
+                    String statusText = 'Settled';
+                    IconData icon = Icons.check_rounded;
+                    Color iconBg = const Color(0xFFF1F5F9);
+                    Color iconColor = const Color(0xFF475569);
+                    Color amountColor = const Color(0xFF475569);
+
+                    if (isPlus) {
+                      statusText = 'Gets back';
+                      icon = Icons.arrow_downward_rounded;
+                      iconBg = RoomerColors.successSoft;
+                      iconColor = RoomerColors.success;
+                      amountColor = RoomerColors.success;
+                    } else if (isMinus) {
+                      statusText = 'Owes';
+                      icon = Icons.arrow_upward_rounded;
+                      iconBg = RoomerColors.orangeSoft;
+                      iconColor = const Color(0xFFEA580C);
+                      amountColor = const Color(0xFFEA580C);
+                    }
+
+                    return _BalanceCard(
+                      name: m.profile?.username ?? 'Unknown',
+                      status: statusText,
+                      amount: bal.abs().toStringAsFixed(2),
+                      icon: icon,
+                      iconBackground: iconBg,
+                      iconColor: iconColor,
+                      amountColor: amountColor,
+                    );
+                  }),
+
                   const SizedBox(height: 30),
                   Text(
                     'Who Owes Who?',
@@ -208,7 +377,39 @@ class HomePage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const _SettlementCard(from: 'B', to: 'A', amount: '5200.00'),
+                  
+                  if (debts.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: RoomerColors.successSoft,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: const Color(0xFFDCFCE7)),
+                      ),
+                      child: const Column(
+                        children: [
+                          Icon(Icons.check_circle_rounded, size: 48, color: RoomerColors.success),
+                          SizedBox(height: 8),
+                          Text(
+                            'All settled up!',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: RoomerColors.success,
+                            ),
+                          )
+                        ],
+                      ),
+                    )
+                  else
+                    ...debts.map((d) => _SettlementCard(
+                          from: d.fromName,
+                          to: d.toName,
+                          amount: d.amount.toStringAsFixed(2),
+                          currency: room.currency,
+                        )),
+
                   const SizedBox(height: 20),
                   Row(
                     children: [
@@ -289,21 +490,19 @@ class _BalanceCard extends StatelessWidget {
     required this.name,
     required this.status,
     required this.amount,
-    required this.iconAsset,
+    required this.icon,
     required this.iconBackground,
     required this.iconColor,
     required this.amountColor,
-    this.iconSize = 20,
   });
 
   final String name;
   final String status;
   final String amount;
-  final String iconAsset;
+  final IconData icon;
   final Color iconBackground;
   final Color iconColor;
   final Color amountColor;
-  final double iconSize;
 
   @override
   Widget build(BuildContext context) {
@@ -324,11 +523,10 @@ class _BalanceCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(15),
                 ),
                 child: Center(
-                  child: SvgPicture.asset(
-                    iconAsset,
-                    width: iconSize,
-                    height: iconSize,
-                    colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+                  child: Icon(
+                    icon,
+                    color: iconColor,
+                    size: 22,
                   ),
                 ),
               ),
@@ -374,15 +572,18 @@ class _SettlementCard extends StatelessWidget {
     required this.from,
     required this.to,
     required this.amount,
+    required this.currency,
   });
 
   final String from;
   final String to;
   final String amount;
+  final String currency;
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(18),
       decoration: roomerCardDecoration(),
       child: Row(
@@ -458,9 +659,9 @@ class _SettlementCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(amount, style: RoomerTextStyles.homeSettlementAmount),
-              const Text(
-                'LKR',
-                style: TextStyle(
+              Text(
+                currency,
+                style: const TextStyle(
                   fontSize: 12,
                   color: Color(0xFF6B7280),
                   fontWeight: FontWeight.w400,

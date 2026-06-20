@@ -1,18 +1,158 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-
 import '../../core/theme.dart';
+import '../../models/room.dart';
+import '../../models/room_member.dart';
+import '../../models/transaction_model.dart';
 
 class AnalyticsPage extends StatelessWidget {
   const AnalyticsPage({
     super.key,
+    required this.room,
+    required this.transactions,
+    required this.members,
     required this.onBackToHome,
   });
 
+  final Room room;
+  final List<TransactionModel> transactions;
+  final List<RoomMember> members;
   final VoidCallback onBackToHome;
+
+  Map<String, dynamic> _calculateInsights() {
+    double totalSpent = 0;
+    int txCount = 0;
+    
+    // Map member userId to amount paid (contribution)
+    final Map<String, double> contributions = {};
+    // Map member userId to amount consumed (splits)
+    final Map<String, double> consumption = {};
+
+    final approvedMembers = members.where((m) => m.status == 'approved').toList();
+
+    for (var m in approvedMembers) {
+      contributions[m.userId] = 0.0;
+      consumption[m.userId] = 0.0;
+    }
+
+    final approvedExpenses = transactions.where((t) => t.type == 'expense' && t.status == 'approved').toList();
+    txCount = approvedExpenses.length;
+
+    for (var t in approvedExpenses) {
+      totalSpent += t.amount;
+      if (t.payerId != null && contributions.containsKey(t.payerId)) {
+        contributions[t.payerId!] = (contributions[t.payerId!] ?? 0.0) + t.amount;
+      }
+
+      final validSplits = t.splits.where((s) => consumption.containsKey(s.userId)).toList();
+      if (validSplits.isNotEmpty) {
+        final splitAmount = t.amount / validSplits.length;
+        for (var s in validSplits) {
+          consumption[s.userId] = (consumption[s.userId] ?? 0.0) + splitAmount;
+        }
+      }
+    }
+
+    // Find highest spender
+    String highestSpenderName = 'No data';
+    double maxSpent = 0;
+    contributions.forEach((uid, val) {
+      if (val > maxSpent) {
+        maxSpent = val;
+        final member = approvedMembers.firstWhere((m) => m.userId == uid);
+        highestSpenderName = member.profile?.username ?? 'Unknown';
+      }
+    });
+
+    // Find highest consumer
+    String highestConsumerName = 'No data';
+    double maxConsumed = 0;
+    consumption.forEach((uid, val) {
+      if (val > maxConsumed) {
+        maxConsumed = val;
+        final member = approvedMembers.firstWhere((m) => m.userId == uid);
+        highestConsumerName = member.profile?.username ?? 'Unknown';
+      }
+    });
+
+    // Generate pie chart sections based on contributions
+    final List<PieChartSectionData> sections = [];
+    final List<Map<String, dynamic>> legendItems = [];
+    
+    final List<Color> colors = [
+      RoomerColors.primary,
+      const Color(0xFF3B82F6),
+      const Color(0xFFF59E0B),
+      const Color(0xFFEF4444),
+      const Color(0xFF8B5CF6),
+      const Color(0xFFEC4899),
+    ];
+
+    int colorIndex = 0;
+    contributions.forEach((uid, val) {
+      if (totalSpent > 0 && val > 0) {
+        final percentage = (val / totalSpent) * 100;
+        final color = colors[colorIndex % colors.length];
+        final member = approvedMembers.firstWhere((m) => m.userId == uid);
+        final name = member.profile?.username ?? 'Unknown';
+
+        sections.add(PieChartSectionData(
+          value: val,
+          color: color,
+          radius: 50,
+          title: '${percentage.toStringAsFixed(0)}%',
+          titleStyle: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ));
+
+        legendItems.add({
+          'name': name,
+          'amount': val,
+          'color': color,
+        });
+
+        colorIndex++;
+      }
+    });
+
+    // If no one contributed anything yet, show dummy section
+    if (sections.isEmpty) {
+      sections.add(PieChartSectionData(
+        value: 1,
+        color: Colors.grey[300]!,
+        radius: 50,
+        title: '0%',
+        titleStyle: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      ));
+    }
+
+    return {
+      'totalSpent': totalSpent,
+      'txCount': txCount,
+      'highestSpender': highestSpenderName,
+      'highestConsumer': highestConsumerName,
+      'sections': sections,
+      'legend': legendItems,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
+    final insights = _calculateInsights();
+    final double totalSpent = insights['totalSpent'] as double;
+    final int txCount = insights['txCount'] as int;
+    final String highestSpender = insights['highestSpender'] as String;
+    final String highestConsumer = insights['highestConsumer'] as String;
+    final List<PieChartSectionData> sections = insights['sections'] as List<PieChartSectionData>;
+    final List<Map<String, dynamic>> legend = insights['legend'] as List<Map<String, dynamic>>;
+
     return Scaffold(
       backgroundColor: RoomerColors.background,
       body: SafeArea(
@@ -39,45 +179,33 @@ class AnalyticsPage extends StatelessWidget {
               padding: const EdgeInsets.all(20),
               decoration: roomerCardDecoration(),
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Monthly Overview',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(
-                          fontWeight:
-                              FontWeight.w700,
-                          color:
-                              RoomerColors.text,
+                    'Overview',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: RoomerColors.text,
                         ),
                   ),
                   const SizedBox(height: 18),
                   Row(
-                    children: const [
+                    children: [
                       Expanded(
                         child: _MiniStat(
-                          title: 'Spent',
-                          value:
-                              'LKR 14,500',
-                          icon: Icons
-                              .wallet_rounded,
-                          color:
-                              RoomerColors.primary,
+                          title: 'Total Spent',
+                          value: '${room.currency} ${totalSpent.toStringAsFixed(0)}',
+                          icon: Icons.wallet_rounded,
+                          color: RoomerColors.primary,
                         ),
                       ),
-                      SizedBox(width: 12),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: _MiniStat(
-                          title:
-                              'Transactions',
-                          value: '12',
-                          icon: Icons
-                              .receipt_long_rounded,
-                          color:
-                              Color(0xFF3B82F6),
+                          title: 'Transactions',
+                          value: '$txCount',
+                          icon: Icons.receipt_long_rounded,
+                          color: const Color(0xFF3B82F6),
                         ),
                       ),
                     ],
@@ -85,7 +213,6 @@ class AnalyticsPage extends StatelessWidget {
                 ],
               ),
             ),
-
             const SizedBox(height: 16),
 
             // PIE CHART CARD
@@ -93,238 +220,121 @@ class AnalyticsPage extends StatelessWidget {
               padding: const EdgeInsets.all(20),
               decoration: roomerCardDecoration(),
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Spending Categories',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(
-                          fontWeight:
-                              FontWeight.w700,
+                    'Spending Contributions',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
                   ),
                   const SizedBox(height: 18),
-
+                  
                   SizedBox(
                     height: 220,
                     child: PieChart(
                       PieChartData(
                         sectionsSpace: 3,
-                        centerSpaceRadius:
-                            48,
-                        sections: [
-                          PieChartSectionData(
-                            value: 45,
-                            color:
-                                RoomerColors.primary,
-                            radius: 48,
-                            title:
-                                '45%',
-                            titleStyle:
-                                const TextStyle(
-                              color:
-                                  Colors.white,
-                              fontWeight:
-                                  FontWeight
-                                      .bold,
-                              fontSize:
-                                  12,
-                            ),
-                          ),
-                          PieChartSectionData(
-                            value: 25,
-                            color:
-                                const Color(
-                                    0xFF3B82F6),
-                            radius: 48,
-                            title:
-                                '25%',
-                            titleStyle:
-                                const TextStyle(
-                              color:
-                                  Colors.white,
-                              fontWeight:
-                                  FontWeight
-                                      .bold,
-                              fontSize:
-                                  12,
-                            ),
-                          ),
-                          PieChartSectionData(
-                            value: 18,
-                            color:
-                                const Color(
-                                    0xFFF59E0B),
-                            radius: 48,
-                            title:
-                                '18%',
-                            titleStyle:
-                                const TextStyle(
-                              color:
-                                  Colors.white,
-                              fontWeight:
-                                  FontWeight
-                                      .bold,
-                              fontSize:
-                                  12,
-                            ),
-                          ),
-                          PieChartSectionData(
-                            value: 12,
-                            color:
-                                const Color(
-                                    0xFFEF4444),
-                            radius: 48,
-                            title:
-                                '12%',
-                            titleStyle:
-                                const TextStyle(
-                              color:
-                                  Colors.white,
-                              fontWeight:
-                                  FontWeight
-                                      .bold,
-                              fontSize:
-                                  12,
-                            ),
-                          ),
-                        ],
+                        centerSpaceRadius: 48,
+                        sections: sections,
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 18),
 
-                  const Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      _LegendDot(
-                        text: 'Food',
-                        color:
-                            RoomerColors.primary,
+                  if (legend.isEmpty)
+                    const Center(
+                      child: Text(
+                        'No spending data recorded yet',
+                        style: TextStyle(fontSize: 13, color: Colors.grey),
                       ),
-                      _LegendDot(
-                        text: 'Rent',
-                        color:
-                            Color(0xFF3B82F6),
-                      ),
-                      _LegendDot(
-                        text: 'Bills',
-                        color:
-                            Color(0xFFF59E0B),
-                      ),
-                      _LegendDot(
-                        text: 'Other',
-                        color:
-                            Color(0xFFEF4444),
-                      ),
-                    ],
-                  ),
+                    )
+                  else
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 10,
+                      children: legend.map((item) {
+                        final double amt = item['amount'] as double;
+                        return _LegendDot(
+                          text: '${item['name']}: ${room.currency} ${amt.toStringAsFixed(0)}',
+                          color: item['color'] as Color,
+                        );
+                      }).toList(),
+                    ),
                 ],
               ),
             ),
-
             const SizedBox(height: 16),
 
-            // MEMBER STATS
+            // MEMBER STATS INSIGHTS
             Row(
-              children: const [
+              children: [
                 Expanded(
                   child: _InsightCard(
-                    title:
-                        'Highest Spender',
-                    value:
-                        'Lakshitha',
-                    icon:
-                        Icons.trending_up,
-                    color:
-                        RoomerColors.primary,
+                    title: 'Highest Spender',
+                    value: highestSpender,
+                    icon: Icons.trending_up,
+                    color: RoomerColors.primary,
                   ),
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Expanded(
                   child: _InsightCard(
-                    title:
-                        'Most Paid',
-                    value:
-                        'Laky',
-                    icon:
-                        Icons.payments_rounded,
-                    color:
-                        Color(0xFF3B82F6),
+                    title: 'Highest Consumer',
+                    value: highestConsumer,
+                    icon: Icons.shopping_bag_rounded,
+                    color: const Color(0xFF3B82F6),
                   ),
                 ),
               ],
             ),
-
             const SizedBox(height: 16),
 
-            // SMART INSIGHTS
+            // SMART INSIGHTS CARD
             Container(
               padding: const EdgeInsets.all(20),
               decoration: roomerCardDecoration(),
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Smart Insights',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(
-                          fontWeight:
-                              FontWeight.w700,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
                   ),
                   const SizedBox(height: 14),
-
-                  const _TipRow(
-                    text:
-                        'Lakshitha spent the most this month 💸',
+                  
+                  _TipRow(
+                    text: totalSpent > 0 
+                        ? '$highestSpender paid the most this month 💸'
+                        : 'No transactions recorded yet 💸',
                   ),
                   _divider(),
-                  const _TipRow(
-                    text:
-                        'Food category highest spending 🍔',
+                  _TipRow(
+                    text: totalSpent > 0 
+                        ? '$highestConsumer consumed the most this month 🍽️'
+                        : 'No expenses split yet 🍽️',
                   ),
                   _divider(),
-                  const _TipRow(
-                    text:
-                        '12 transactions recorded this month 📈',
+                  _TipRow(
+                    text: '$txCount approved expense transactions recorded 📈',
                   ),
                 ],
               ),
             ),
-
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
-  Widget _divider() {
-    return const Padding(
-      padding:
-          EdgeInsets.symmetric(vertical: 12),
-      child: Divider(
-        height: 1,
-        color: Color(0xFFF1F5F9),
-      ),
-    );
-  }
+  Widget _divider() => const Divider(color: Color(0xFFF3F4F6), height: 24);
 }
 
-// BACK BUTTON
 class _BackButton extends StatelessWidget {
-  const _BackButton({
-    required this.onTap,
-  });
+  const _BackButton({required this.onTap});
 
   final VoidCallback onTap;
 
@@ -335,23 +345,17 @@ class _BackButton extends StatelessWidget {
       shape: const CircleBorder(),
       child: InkWell(
         onTap: onTap,
-        customBorder:
-            const CircleBorder(),
+        customBorder: const CircleBorder(),
         child: const SizedBox(
           width: 40,
           height: 40,
-          child: Icon(
-            Icons.arrow_back_rounded,
-            color:
-                Color(0xFF4B5563),
-          ),
+          child: Icon(Icons.arrow_back_rounded, color: Color(0xFF4B5563)),
         ),
       ),
     );
   }
 }
 
-// MINI STAT
 class _MiniStat extends StatelessWidget {
   const _MiniStat({
     required this.title,
@@ -368,38 +372,36 @@ class _MiniStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color:
-            const Color(0xFFF8FAFC),
-        borderRadius:
-            BorderRadius.circular(
-                18),
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon,
-              size: 20,
-              color: color),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 12,
-              color:
-                  RoomerColors.mutedText,
-            ),
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Color(0xFF6B7280),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Text(
             value,
             style: const TextStyle(
               fontSize: 16,
-              fontWeight:
-                  FontWeight.w700,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF111827),
             ),
           ),
         ],
@@ -408,12 +410,8 @@ class _MiniStat extends StatelessWidget {
   }
 }
 
-// LEGEND
 class _LegendDot extends StatelessWidget {
-  const _LegendDot({
-    required this.text,
-    required this.color,
-  });
+  const _LegendDot({required this.text, required this.color});
 
   final String text;
   final Color color;
@@ -421,29 +419,23 @@ class _LegendDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisSize:
-          MainAxisSize.min,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 10,
           height: 10,
-          decoration:
-              BoxDecoration(
+          decoration: BoxDecoration(
             color: color,
-            shape:
-                BoxShape.circle,
+            shape: BoxShape.circle,
           ),
         ),
         const SizedBox(width: 6),
         Text(
           text,
-          style:
-              const TextStyle(
+          style: const TextStyle(
+            color: Color(0xFF4B5563),
             fontSize: 12,
-            color:
-                RoomerColors.text,
-            fontWeight:
-                FontWeight.w600,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
@@ -451,9 +443,7 @@ class _LegendDot extends StatelessWidget {
   }
 }
 
-// SMALL CARD
-class _InsightCard
-    extends StatelessWidget {
+class _InsightCard extends StatelessWidget {
   const _InsightCard({
     required this.title,
     required this.value,
@@ -469,34 +459,39 @@ class _InsightCard
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.all(18),
-      decoration:
-          roomerCardDecoration(),
+      padding: const EdgeInsets.all(18),
+      decoration: roomerCardDecoration(),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon,
-              color: color,
-              size: 20),
-          const SizedBox(height: 12),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 14),
           Text(
             title,
             style: const TextStyle(
-              fontSize: 12,
-              color:
-                  RoomerColors.mutedText,
+              color: Color(0xFF6B7280),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             value,
             style: const TextStyle(
               fontSize: 15,
-              fontWeight:
-                  FontWeight.w700,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF111827),
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -504,25 +499,33 @@ class _InsightCard
   }
 }
 
-// INSIGHT TEXT
 class _TipRow extends StatelessWidget {
-  const _TipRow({
-    required this.text,
-  });
+  const _TipRow({required this.text});
 
   final String text;
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 13,
-        height: 1.4,
-        color: RoomerColors.text,
-        fontWeight:
-            FontWeight.w500,
-      ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(
+          Icons.lightbulb_outline_rounded,
+          color: Color(0xFFF59E0B),
+          size: 18,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF374151),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

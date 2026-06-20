@@ -1,19 +1,71 @@
 import 'package:flutter/material.dart';
+import '../../services/database_service.dart';
 import '../approvals/waiting_screen.dart';
 import '../room_setup/room_setup_screen.dart';
 
-class RoomChoiceScreen extends StatelessWidget {
+class RoomChoiceScreen extends StatefulWidget {
   const RoomChoiceScreen({super.key});
+
+  @override
+  State<RoomChoiceScreen> createState() => _RoomChoiceScreenState();
+}
+
+class _RoomChoiceScreenState extends State<RoomChoiceScreen> {
+  final DatabaseService _dbService = DatabaseService();
+  final TextEditingController _codeController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleJoinRoom() async {
+    final code = _codeController.text.trim();
+    if (code.length != 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid 6-digit Room ID')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _dbService.joinRoom(code);
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const WaitingScreen(),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to join room: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(
-        0xFFF4FAF6,
-      ), // Off-white green [cite: 2026-04-22]
+      backgroundColor: const Color(0xFFF4FAF6),
       body: SafeArea(
         child: SingleChildScrollView(
-          // Keyboard එක එද්දී scroll වෙන්න [cite: 2026-04-06]
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 30),
             child: Column(
@@ -25,9 +77,7 @@ class RoomChoiceScreen extends StatelessWidget {
                     style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   ),
                 ),
-
-                const SizedBox(height: 100), // මැදට ගන්න ඉඩ [cite: 2026-04-22]
-
+                const SizedBox(height: 100),
                 const Text(
                   'Enter 6-Digit Room ID',
                   style: TextStyle(
@@ -38,27 +88,27 @@ class RoomChoiceScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 25),
 
-                // ඇත්තටම පේන TextField එක [cite: 2026-04-22]
+                // Room ID TextField Container
                 Container(
                   decoration: BoxDecoration(
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
+                        color: Colors.black.withOpacity(0.05),
                         blurRadius: 15,
                         offset: const Offset(0, 5),
                       ),
                     ],
                   ),
                   child: TextField(
-                    autofocus:
-                        true, // Screen එකට ආපු ගමන් keyboard එක එනවා [cite: 2026-04-06]
+                    controller: _codeController,
+                    autofocus: true,
                     textAlign: TextAlign.center,
                     keyboardType: TextInputType.number,
                     maxLength: 6,
                     style: const TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
-                      letterSpacing: 12, // අංක අතර ඉඩ [cite: 2026-04-22]
+                      letterSpacing: 12,
                       color: Color(0xFF2FB56B),
                     ),
                     decoration: InputDecoration(
@@ -71,7 +121,6 @@ class RoomChoiceScreen extends StatelessWidget {
                       filled: true,
                       fillColor: Colors.white,
                       contentPadding: const EdgeInsets.symmetric(vertical: 20),
-                      // Click වුණාම කොළ පාට border එක [cite: 2026-04-22]
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(20),
                         borderSide: const BorderSide(
@@ -92,14 +141,7 @@ class RoomChoiceScreen extends StatelessWidget {
 
                 const SizedBox(height: 40),
 
-                _buildPrimaryButton('Join Room', () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const WaitingScreen(),
-                    ),
-                  );
-                }),
+                _buildPrimaryButton(),
 
                 const SizedBox(height: 60),
 
@@ -136,12 +178,12 @@ class RoomChoiceScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPrimaryButton(String text, VoidCallback onPressed) {
+  Widget _buildPrimaryButton() {
     return SizedBox(
       width: double.infinity,
       height: 55,
       child: ElevatedButton(
-        onPressed: onPressed,
+        onPressed: _isLoading ? null : _handleJoinRoom,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF4CD080),
           shape: RoundedRectangleBorder(
@@ -149,14 +191,23 @@ class RoomChoiceScreen extends StatelessWidget {
           ),
           elevation: 0,
         ),
-        child: Text(
-          text,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        ),
+        child: _isLoading
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2.5,
+                ),
+              )
+            : const Text(
+                'Join Room',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
       ),
     );
   }

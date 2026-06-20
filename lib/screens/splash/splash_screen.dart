@@ -1,6 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../services/auth_service.dart';
+import '../../services/database_service.dart';
 import '../auth/welcome_screen.dart';
+import '../room_choice/room_choice_screen.dart';
+import '../approvals/waiting_screen.dart';
+import '../dashboard/dashboard_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -10,17 +15,61 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  final AuthService _authService = AuthService();
+  final DatabaseService _dbService = DatabaseService();
+
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(seconds: 4), () {
-      if (mounted) {
+    _checkStatusAndNavigate();
+  }
+
+  Future<void> _checkStatusAndNavigate() async {
+    // Wait for 2.5 seconds to show splash animation
+    await Future.delayed(const Duration(milliseconds: 2500));
+
+    if (!mounted) return;
+
+    final user = _authService.currentUser;
+    if (user == null) {
+      // User is not logged in
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+      );
+    } else {
+      // User is logged in, check room status
+      try {
+        final roomData = await _dbService.getJoinedRoomForUser();
+        if (roomData == null) {
+          // No room
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const RoomChoiceScreen()),
+          );
+        } else {
+          final member = roomData['member'];
+          if (member.status == 'approved') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const DashboardScreen()),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const WaitingScreen()),
+            );
+          }
+        }
+      } catch (e) {
+        print('Error in splash screen navigation check: $e');
+        // fallback to welcome screen on database error
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const WelcomeScreen()),
         );
       }
-    });
+    }
   }
 
   @override
