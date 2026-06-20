@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../services/auth_service.dart';
+import '../room_choice/room_choice_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -8,10 +10,74 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
+  final AuthService _authService = AuthService();
+
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleSignUp() async {
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _authService.signUp(
+        email: email,
+        password: password,
+        username: name,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Account created successfully!')),
+      );
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const RoomChoiceScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Sign up failed: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Off-white green background [cite: 2026-04-22]
       backgroundColor: const Color(0xFFF4FAF6),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -21,8 +87,6 @@ class _SignupScreenState extends State<SignupScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 60),
-
-                // Title
                 const Center(
                   child: Text(
                     'Create an account',
@@ -33,29 +97,32 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 50),
 
-                // Full Name Field [cite: 2026-04-22]
                 _buildInputLabel('Full Name'),
-                _buildTextField('Enter Your Name', Icons.person_outline),
-
-                const SizedBox(height: 25),
-
-                // Email Field
-                _buildInputLabel('Email Address'),
                 _buildTextField(
-                  'Enter Your Email Address',
-                  Icons.email_outlined,
+                  controller: _nameController,
+                  hint: 'Enter Your Name',
+                  icon: Icons.person_outline,
                 ),
 
                 const SizedBox(height: 25),
 
-                // Password Field [cite: 2026-04-22]
+                _buildInputLabel('Email Address'),
+                _buildTextField(
+                  controller: _emailController,
+                  hint: 'Enter Your Email Address',
+                  icon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
+                ),
+
+                const SizedBox(height: 25),
+
                 _buildInputLabel('Password'),
                 _buildTextField(
-                  'Password',
-                  Icons.lock_outline,
+                  controller: _passwordController,
+                  hint: 'Password',
+                  icon: Icons.lock_outline,
                   isPassword: true,
                 ),
 
@@ -66,9 +133,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
-                    onPressed: () {
-                      // Firebase logic [cite: 2026-04-06]
-                    },
+                    onPressed: _isLoading ? null : _handleSignUp,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4CD080),
                       shape: RoundedRectangleBorder(
@@ -76,20 +141,28 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      'Create Account',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                        : const Text(
+                            'Create Account',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
                   ),
                 ),
 
                 const SizedBox(height: 40),
 
-                // Or continue with Divider
                 Row(
                   children: [
                     Expanded(child: Divider(color: Colors.grey[300])),
@@ -106,7 +179,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
                 const SizedBox(height: 25),
 
-                // Social Icons Row
                 const Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
@@ -118,7 +190,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
                 const SizedBox(height: 40),
 
-                // Bottom Text
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -148,40 +219,44 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Widget _buildInputLabel(String label) => Align(
-    alignment: Alignment.centerLeft,
-    child: Padding(
-      padding: const EdgeInsets.only(bottom: 8, left: 4),
-      child: Text(
-        label,
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-      ),
-    ),
-  );
+        alignment: Alignment.centerLeft,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 8, left: 4),
+          child: Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+        ),
+      );
 
-  Widget _buildTextField(
-    String hint,
-    IconData icon, {
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
     bool isPassword = false,
-  }) => TextField(
-    obscureText: isPassword,
-    decoration: InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
-      prefixIcon: Icon(icon, color: Colors.grey[400], size: 20),
-      filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      // Click කරද්දී Green Stroke [cite: 2026-04-22]
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: Color(0xFF4CD080), width: 2),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(15),
-        borderSide: BorderSide.none,
-      ),
-    ),
-  );
+    TextInputType keyboardType = TextInputType.text,
+  }) =>
+      TextField(
+        controller: controller,
+        obscureText: isPassword,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+          prefixIcon: Icon(icon, color: Colors.grey[400], size: 20),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: const BorderSide(color: Color(0xFF4CD080), width: 2),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide.none,
+          ),
+        ),
+      );
 }
 
 class _SocialIcon extends StatelessWidget {
@@ -202,6 +277,9 @@ class _SocialIcon extends StatelessWidget {
         width: 30,
         height: 30,
         fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return const Icon(Icons.account_circle, size: 30, color: Colors.grey);
+        },
       ),
     );
   }

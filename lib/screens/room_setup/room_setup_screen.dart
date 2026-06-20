@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import '../../services/database_service.dart';
 import '../dashboard/dashboard_screen.dart';
 
 class RoomSetupScreen extends StatefulWidget {
@@ -10,7 +10,9 @@ class RoomSetupScreen extends StatefulWidget {
 }
 
 class _RoomSetupScreenState extends State<RoomSetupScreen> {
+  final DatabaseService _dbService = DatabaseService();
   final TextEditingController roomController = TextEditingController();
+  bool _isLoading = false;
 
   final List<Map<String, String>> currencies = [
     {"code": "LKR", "flag": "🇱🇰"},
@@ -24,6 +26,52 @@ class _RoomSetupScreenState extends State<RoomSetupScreen> {
   ];
 
   String selectedCurrency = "LKR";
+
+  @override
+  void dispose() {
+    roomController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleCreateRoom() async {
+    final name = roomController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a room name')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _dbService.createRoom(name, selectedCurrency);
+
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const DashboardScreen(),
+        ),
+        (route) => false,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to create room: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -200,9 +248,7 @@ class _RoomSetupScreenState extends State<RoomSetupScreen> {
                               currency['flag']!,
                               style: const TextStyle(fontSize: 16),
                             ),
-
                             const SizedBox(width: 6),
-
                             Text(
                               currency['code']!,
                               style: TextStyle(
@@ -228,15 +274,7 @@ class _RoomSetupScreenState extends State<RoomSetupScreen> {
                 width: double.infinity,
                 height: 58,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const DashboardScreen(),
-                      ),
-                      (route) => false,
-                    );
-                  },
+                  onPressed: _isLoading ? null : _handleCreateRoom,
                   style: ElevatedButton.styleFrom(
                     elevation: 0,
                     backgroundColor: const Color(0xFF4CD080),
@@ -244,14 +282,23 @@ class _RoomSetupScreenState extends State<RoomSetupScreen> {
                       borderRadius: BorderRadius.circular(18),
                     ),
                   ),
-                  child: const Text(
-                    'Create Room',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
+                          ),
+                        )
+                      : const Text(
+                          'Create Room',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                 ),
               ),
 
